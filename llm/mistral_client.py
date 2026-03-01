@@ -24,8 +24,8 @@ logger = logging.getLogger(__name__)
 # Sub-section: Configuration
 # ----------------------------------------------------------------------------
 
-DEFAULT_MODEL = "mistral-small-latest"
-MAX_TOKENS = 200
+DEFAULT_MODEL = "mistral-medium-latest"
+MAX_TOKENS = 300
 MAX_RETRIES = 3
 RETRY_DELAY = 1.0
 
