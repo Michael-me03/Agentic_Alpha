@@ -1,56 +1,57 @@
 # ============================================================================
-# SECTION: Market State
+# SECTION: Market State (Multi-Asset)
 # ============================================================================
 
 """
-MarketState holds the complete observable state of the market at each tick.
-
-Agents read from this state. The simulation loop writes to it.
+MarketState holds the complete observable state for all assets at each tick.
 """
 
 from dataclasses import dataclass, field
+from config import ASSET_SYMBOLS
 
 
 @dataclass
 class MarketState:
     """
-    Snapshot of the market at the current tick.
+    Snapshot of the market at the current tick — supports multiple assets.
 
     Attributes:
-        tick:           Current time step.
-        price:          Current asset price.
-        price_history:  List of all past prices (including current).
-        net_order_flow: Sum of signed trade sizes this tick.
+        tick:             Current time step.
+        prices:           Current price per asset {"BTC": 62500, ...}.
+        price_histories:  Price history per asset {"BTC": [...], ...}.
+        net_order_flows:  Net order flow per asset this tick.
     """
 
     tick: int = 0
-    price: float = 100.0
-    price_history: list[float] = field(default_factory=lambda: [100.0])
-    net_order_flow: float = 0.0
+    prices: dict[str, float] = field(default_factory=dict)
+    price_histories: dict[str, list[float]] = field(default_factory=dict)
+    net_order_flows: dict[str, float] = field(default_factory=dict)
 
-    def recent_prices(self, n: int) -> list[float]:
+    def recent_prices(self, asset: str, n: int) -> list[float]:
         """
-        Return the last n prices from history.
+        Return the last n prices for a given asset.
 
         Args:
-            n: Number of recent prices to return.
+            asset: Asset symbol (e.g. "BTC").
+            n:     Number of recent prices.
 
         Returns:
             List of up to n most recent prices.
         """
-        return self.price_history[-n:]
+        return self.price_histories.get(asset, [])[-n:]
 
-    def recent_returns(self, n: int) -> list[float]:
+    def recent_returns(self, asset: str, n: int) -> list[float]:
         """
-        Compute the last n log-returns from price history.
+        Compute the last n returns for a given asset.
 
         Args:
-            n: Number of recent returns to compute.
+            asset: Asset symbol.
+            n:     Number of recent returns.
 
         Returns:
-            List of recent returns (may be shorter than n if not enough history).
+            List of recent returns.
         """
-        prices = self.price_history[-(n + 1):]
+        prices = self.price_histories.get(asset, [])[-(n + 1):]
         if len(prices) < 2:
             return []
         return [

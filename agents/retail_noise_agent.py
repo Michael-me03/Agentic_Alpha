@@ -1,10 +1,11 @@
 # ============================================================================
-# SECTION: Retail Noise Agent
+# SECTION: Retail Noise Agent (Multi-Asset)
 # ============================================================================
 
 """
 Emotional retail trader that overreacts to price moves.
 
+Picks a random asset each tick, then:
 - Strong up move   → buys large (FOMO)
 - Strong down move → panic sells large
 - Moderate move    → small random trades
@@ -15,9 +16,10 @@ This agent introduces instability and realism.
 
 import numpy as np
 
-from agents.base_agent import BaseAgent
+from agents.base_agent import BaseAgent, TradeDecision
 from core.state import MarketState
 from config import (
+    ASSET_SYMBOLS,
     RETAIL_STRONG_MOVE,
     RETAIL_TRADE_SIZE_SMALL,
     RETAIL_TRADE_SIZE_LARGE,
@@ -50,29 +52,35 @@ class RetailNoiseAgent(BaseAgent):
         self.trade_size_large = trade_size_large
         self.rng = rng or np.random.default_rng()
 
-    def decide(self, state: MarketState) -> int:
+    def decide(self, state: MarketState) -> TradeDecision:
         """
-        React emotionally to the most recent price move.
+        Pick a random asset and react emotionally to its most recent price move.
 
         Args:
             state: Current market state.
 
         Returns:
-            Signed trade size.
+            TradeDecision with asset and signed trade size.
         """
-        returns = state.recent_returns(1)
+        # Pick a random asset
+        symbol = self.rng.choice(ASSET_SYMBOLS)
+
+        returns = state.recent_returns(symbol, 1)
         if not returns:
-            return 0
+            return TradeDecision()
 
         last_return = returns[-1]
 
         # Strong up → FOMO buy
         if last_return > self.strong_move:
-            return self.trade_size_large
+            return TradeDecision(asset=symbol, trade_size=self.trade_size_large)
 
         # Strong down → panic sell
         if last_return < -self.strong_move:
-            return -self.trade_size_large
+            return TradeDecision(asset=symbol, trade_size=-self.trade_size_large)
 
         # Otherwise → small random noise
-        return int(self.rng.choice([-self.trade_size_small, 0, self.trade_size_small]))
+        size = int(self.rng.choice([-self.trade_size_small, 0, self.trade_size_small]))
+        if size == 0:
+            return TradeDecision()
+        return TradeDecision(asset=symbol, trade_size=size)

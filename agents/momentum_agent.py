@@ -1,18 +1,24 @@
 # ============================================================================
-# SECTION: Momentum Agent
+# SECTION: Momentum Agent (Multi-Asset)
 # ============================================================================
 
 """
 Trades based on recent returns — amplifies existing trends.
 
-- If average recent return > threshold  → BUY
-- If average recent return < -threshold → SELL
+Scans all assets and picks the one with the strongest signal:
+- If average recent return > threshold  → BUY that asset
+- If average recent return < -threshold → SELL that asset
 - Otherwise                             → HOLD
 """
 
-from agents.base_agent import BaseAgent
+from agents.base_agent import BaseAgent, TradeDecision
 from core.state import MarketState
-from config import MOMENTUM_LOOKBACK, MOMENTUM_THRESHOLD, MOMENTUM_TRADE_SIZE
+from config import (
+    ASSET_SYMBOLS,
+    MOMENTUM_LOOKBACK,
+    MOMENTUM_THRESHOLD,
+    MOMENTUM_TRADE_SIZE,
+)
 
 
 class MomentumAgent(BaseAgent):
@@ -38,24 +44,35 @@ class MomentumAgent(BaseAgent):
         self.threshold = threshold
         self.trade_size = trade_size
 
-    def decide(self, state: MarketState) -> int:
+    def decide(self, state: MarketState) -> TradeDecision:
         """
-        Decide trade based on average recent return.
+        Pick the asset with strongest momentum and trade it.
 
         Args:
             state: Current market state.
 
         Returns:
-            Signed trade size.
+            TradeDecision with asset and signed trade size.
         """
-        returns = state.recent_returns(self.lookback)
-        if not returns:
-            return 0
+        best_asset = ""
+        best_signal = 0.0
 
-        avg_return = sum(returns) / len(returns)
+        for symbol in ASSET_SYMBOLS:
+            returns = state.recent_returns(symbol, self.lookback)
+            if not returns:
+                continue
+            avg_return = sum(returns) / len(returns)
 
-        if avg_return > self.threshold:
-            return self.trade_size
-        elif avg_return < -self.threshold:
-            return -self.trade_size
-        return 0
+            if abs(avg_return) > abs(best_signal):
+                best_signal = avg_return
+                best_asset = symbol
+
+        if not best_asset:
+            return TradeDecision()
+
+        if best_signal > self.threshold:
+            return TradeDecision(asset=best_asset, trade_size=self.trade_size)
+        elif best_signal < -self.threshold:
+            return TradeDecision(asset=best_asset, trade_size=-self.trade_size)
+
+        return TradeDecision()

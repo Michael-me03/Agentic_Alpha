@@ -1,18 +1,19 @@
 # ============================================================================
-# SECTION: Market Maker Agent
+# SECTION: Market Maker Agent (Multi-Asset)
 # ============================================================================
 
 """
 Provides liquidity by trading against the net order flow.
 
+Scans all assets and picks the one with highest flow imbalance:
 - If net flow is positive (buying pressure) → SELL small amount
 - If net flow is negative (selling pressure) → BUY small amount
-- Respects inventory limits to avoid excessive directional risk
+- Respects per-asset inventory limits
 """
 
-from agents.base_agent import BaseAgent
+from agents.base_agent import BaseAgent, TradeDecision
 from core.state import MarketState
-from config import MARKET_MAKER_TRADE_SIZE, MARKET_MAKER_MAX_INVENTORY
+from config import ASSET_SYMBOLS, MARKET_MAKER_TRADE_SIZE, MARKET_MAKER_MAX_INVENTORY
 
 
 class MarketMaker(BaseAgent):
@@ -22,7 +23,7 @@ class MarketMaker(BaseAgent):
     Args:
         name:          Agent identifier.
         trade_size:    Fixed size per market-making trade.
-        max_inventory: Absolute position limit before refusing to trade.
+        max_inventory: Absolute position limit per asset.
     """
 
     def __init__(
@@ -35,20 +36,38 @@ class MarketMaker(BaseAgent):
         self.trade_size = trade_size
         self.max_inventory = max_inventory
 
-    def decide(self, state: MarketState) -> int:
+    def decide(self, state: MarketState) -> TradeDecision:
         """
-        Trade against net order flow, respecting inventory limits.
+        Trade against the largest net order flow, respecting inventory limits.
 
         Args:
             state: Current market state.
 
         Returns:
-            Signed trade size.
+            TradeDecision with asset and signed trade size.
         """
-        flow = state.net_order_flow
+        best_asset = ""
+        best_flow = 0.0
 
-        if flow > 0 and self.position > -self.max_inventory:
-            return -self.trade_size
-        elif flow < 0 and self.position < self.max_inventory:
-            return self.trade_size
-        return 0
+        for symbol in ASSET_SYMBOLS:
+            flow = state.net_order_flows.get(symbol, 0.0)
+            pos = self.positions.get(symbol, 0)
+
+            if abs(flow) > abs(best_flow):
+                # Check inventory limits before selecting
+                if flow > 0 and pos > -self.max_inventory:
+                    best_flow = flow
+                    best_asset = symbol
+                elif flow < 0 and pos < self.max_inventory:
+                    best_flow = flow
+                    best_asset = symbol
+
+        if not best_asset:
+            return TradeDecision()
+
+        if best_flow > 0:
+            return TradeDecision(asset=best_asset, trade_size=-self.trade_size)
+        elif best_flow < 0:
+            return TradeDecision(asset=best_asset, trade_size=self.trade_size)
+
+        return TradeDecision()

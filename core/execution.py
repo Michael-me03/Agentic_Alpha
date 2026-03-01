@@ -1,14 +1,9 @@
 # ============================================================================
-# SECTION: Execution Engine
+# SECTION: Execution Engine (Multi-Asset)
 # ============================================================================
 
 """
-Simplified execution engine.
-
-- Market orders only
-- Immediate fill at current price
-- Linear price impact (applied via price_process)
-- No orderbook
+Simplified multi-asset execution engine.
 """
 
 from __future__ import annotations
@@ -21,35 +16,26 @@ if TYPE_CHECKING:
 from core.state import MarketState
 
 
-def execute_trade(agent: BaseAgent, trade_size: int, state: MarketState) -> None:
+def execute_trade(
+    agent: BaseAgent,
+    asset: str,
+    trade_size: int,
+    state: MarketState,
+) -> None:
     """
-    Execute a market order for an agent.
-
-    Positive trade_size = BUY, negative = SELL.
+    Execute a market order for a specific asset.
 
     Args:
         agent:      The agent executing the trade.
-        trade_size: Signed number of units to trade.
-        state:      Current market state (price used for fill).
+        asset:      Asset symbol (e.g. "BTC").
+        trade_size: Signed number of units.
+        state:      Current market state.
     """
     if trade_size == 0:
         return
 
-    cost = trade_size * state.price
-    agent.position += trade_size
+    price = state.prices[asset]
+    cost = trade_size * price
+    agent.positions[asset] = agent.positions.get(asset, 0) + trade_size
     agent.cash -= cost
-    state.net_order_flow += trade_size
-
-
-def compute_pnl(agent: BaseAgent, current_price: float) -> float:
-    """
-    Compute mark-to-market PnL for an agent.
-
-    Args:
-        agent:         The agent to compute PnL for.
-        current_price: Current market price.
-
-    Returns:
-        Total PnL (unrealized + realized).
-    """
-    return agent.position * current_price + agent.cash - agent.initial_cash
+    state.net_order_flows[asset] = state.net_order_flows.get(asset, 0.0) + trade_size

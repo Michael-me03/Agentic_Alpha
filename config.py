@@ -9,13 +9,22 @@ All simulation parameters live here — no magic numbers elsewhere.
 """
 
 # ----------------------------------------------------------------------------
+# Sub-section: Asset Definitions (3 Crypto Currencies)
+# ----------------------------------------------------------------------------
+
+ASSETS = {
+    "BTC": {"name": "Bitcoin",  "initial_price": 62_500.0, "drift": 0.0002, "volatility": 0.025},
+    "ETH": {"name": "Ethereum", "initial_price": 3_200.0,  "drift": 0.0003, "volatility": 0.030},
+    "SOL": {"name": "Solana",   "initial_price": 145.0,    "drift": 0.0004, "volatility": 0.040},
+}
+
+ASSET_SYMBOLS = list(ASSETS.keys())  # ["BTC", "ETH", "SOL"]
+
+# ----------------------------------------------------------------------------
 # Sub-section: Market Parameters
 # ----------------------------------------------------------------------------
 
-INITIAL_PRICE: float = 100.0
-DRIFT: float = 0.0001
-VOLATILITY: float = 0.02
-PRICE_IMPACT: float = 0.001
+PRICE_IMPACT: float = 0.0001
 DT: float = 1.0
 
 # ----------------------------------------------------------------------------
