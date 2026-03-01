@@ -241,8 +241,45 @@ export default function App() {
         </div>
       )}
 
+      {/* ── Loading Overlay ──────────────────────────────────────────────── */}
+      {isLoading && (
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <div className="relative w-20 h-20 mx-auto mb-6">
+              <div className="absolute inset-0 rounded-full border-2 border-violet-500/20" />
+              <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-violet-500 animate-spin" />
+              <div className="absolute inset-3 rounded-full border-2 border-transparent border-t-amber-400 animate-spin" style={{ animationDirection: 'reverse', animationDuration: '1.5s' }} />
+            </div>
+            <p className="text-white font-mono font-bold text-sm mb-2">
+              QUERYING MISTRAL AI
+            </p>
+            <p className="text-gray-500 font-mono text-xs mb-1">
+              {agentConfigs.length} agents analyzing {selectedAssets.length} assets
+            </p>
+            <p className="text-gray-600 font-mono text-[10px]">
+              Each agent receives market data and makes trading decisions...
+            </p>
+            <div className="flex justify-center gap-1 mt-4">
+              {agentConfigs.map((cfg) => (
+                <div
+                  key={cfg.name}
+                  className="px-2 py-1 rounded text-[10px] font-mono font-bold animate-pulse"
+                  style={{
+                    color: cfg.color,
+                    backgroundColor: cfg.color + '15',
+                    animationDelay: `${Math.random() * 2}s`,
+                  }}
+                >
+                  {cfg.name}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── Main Layout ─────────────────────────────────────────────────── */}
-      <div className="flex-1 flex min-h-0 overflow-hidden">
+      {!isLoading && <div className="flex-1 flex min-h-0 overflow-hidden">
         {/* Left Sidebar: Activity Feed — desktop only */}
         <div className="hidden lg:block w-56 shrink-0 border-r border-[#1a1a2a] p-2 overflow-hidden">
           <ActivityFeed
@@ -358,7 +395,7 @@ export default function App() {
             assets={selectedAssets}
           />
         </div>
-      </div>
+      </div>}
     </div>
   );
 }
