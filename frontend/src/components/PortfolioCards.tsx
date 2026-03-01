@@ -176,32 +176,95 @@ export default function PortfolioCards({
               </svg>
             </div>
 
-            {/* ── Allocation Bar ────────────────────────────────────────── */}
+            {/* ── Allocation Donut ──────────────────────────────────────── */}
             <div className="mb-3">
-              <div className="text-[9px] text-gray-600 mb-1 uppercase">Allocation</div>
-              <div className="flex h-2 rounded-full overflow-hidden bg-[#1a1a2a]">
-                {p.holdings.map((h) => {
-                  const pct = p.totalAbsExposure > 0 ? (Math.abs(h.value) / p.totalAbsExposure) * 100 : 0;
-                  if (pct < 0.5) return null;
-                  return (
-                    <div
-                      key={h.symbol}
-                      className="h-full transition-all duration-500"
-                      style={{
-                        width: `${pct}%`,
-                        backgroundColor: ASSET_COLORS[h.symbol] ?? '#666',
-                        opacity: h.pos < 0 ? 0.5 : 0.85,
-                      }}
-                    />
-                  );
-                })}
-                {/* Cash portion */}
-                {p.totalAbsExposure > 0 && (
-                  <div
-                    className="h-full bg-gray-700/40"
-                    style={{ width: `${(Math.abs(p.cashRemaining) / p.totalAbsExposure) * 100}%` }}
-                  />
-                )}
+              <div className="text-[9px] text-gray-600 mb-1.5 uppercase">Allocation</div>
+              <div className="flex items-center gap-3">
+                {/* SVG Donut */}
+                <svg viewBox="0 0 36 36" className="w-16 h-16 shrink-0">
+                  {/* Background circle */}
+                  <circle cx="18" cy="18" r="14" fill="none" stroke="#1a1a2a" strokeWidth="5" />
+                  {/* Asset segments */}
+                  {(() => {
+                    let offset = 0;
+                    const segments: React.ReactNode[] = [];
+                    const total = p.totalAbsExposure;
+                    if (total > 0) {
+                      p.holdings.forEach((h) => {
+                        const pct = (Math.abs(h.value) / total) * 100;
+                        if (pct < 0.5) return;
+                        const dashArray = `${pct * 0.88} ${88 - pct * 0.88}`;
+                        segments.push(
+                          <circle
+                            key={h.symbol}
+                            cx="18" cy="18" r="14"
+                            fill="none"
+                            stroke={ASSET_COLORS[h.symbol] ?? '#666'}
+                            strokeWidth="5"
+                            strokeDasharray={dashArray}
+                            strokeDashoffset={-offset * 0.88}
+                            strokeLinecap="round"
+                            opacity={h.pos < 0 ? 0.5 : 0.85}
+                            transform="rotate(-90 18 18)"
+                          />
+                        );
+                        offset += pct;
+                      });
+                      // Cash segment
+                      const cashPct = (Math.abs(p.cashRemaining) / total) * 100;
+                      if (cashPct > 0.5) {
+                        segments.push(
+                          <circle
+                            key="cash"
+                            cx="18" cy="18" r="14"
+                            fill="none"
+                            stroke="#4a4a5a"
+                            strokeWidth="5"
+                            strokeDasharray={`${cashPct * 0.88} ${88 - cashPct * 0.88}`}
+                            strokeDashoffset={-offset * 0.88}
+                            strokeLinecap="round"
+                            opacity={0.4}
+                            transform="rotate(-90 18 18)"
+                          />
+                        );
+                      }
+                    }
+                    return segments;
+                  })()}
+                  {/* Center text — return % */}
+                  <text x="18" y="17" textAnchor="middle" fontSize="5" fontWeight="bold" fontFamily="monospace"
+                    fill={isUp ? '#10b981' : '#ef4444'}>
+                    {isUp ? '+' : ''}{p.returnPct.toFixed(1)}%
+                  </text>
+                  <text x="18" y="22" textAnchor="middle" fontSize="3" fill="#666" fontFamily="monospace">
+                    return
+                  </text>
+                </svg>
+                {/* Legend */}
+                <div className="flex-1 space-y-0.5">
+                  {p.holdings.map((h) => {
+                    const pct = p.totalAbsExposure > 0 ? (Math.abs(h.value) / p.totalAbsExposure) * 100 : 0;
+                    if (pct < 0.5) return null;
+                    return (
+                      <div key={h.symbol} className="flex items-center justify-between text-[8px]">
+                        <div className="flex items-center gap-1">
+                          <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: ASSET_COLORS[h.symbol] }} />
+                          <span style={{ color: ASSET_COLORS[h.symbol] }}>{displaySymbol(h.symbol)}</span>
+                        </div>
+                        <span className="text-gray-500">{pct.toFixed(0)}%</span>
+                      </div>
+                    );
+                  })}
+                  <div className="flex items-center justify-between text-[8px]">
+                    <div className="flex items-center gap-1">
+                      <div className="w-1.5 h-1.5 rounded-full bg-gray-600" />
+                      <span className="text-gray-500">Cash</span>
+                    </div>
+                    <span className="text-gray-500">
+                      {p.totalAbsExposure > 0 ? ((Math.abs(p.cashRemaining) / p.totalAbsExposure) * 100).toFixed(0) : '100'}%
+                    </span>
+                  </div>
+                </div>
               </div>
             </div>
 
