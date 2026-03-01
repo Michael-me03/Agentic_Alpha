@@ -278,8 +278,15 @@ export default function App() {
         </div>
       )}
 
+      {/* ── No data yet (error or waiting) ──────────────────────────────── */}
+      {!isLoading && !data && !error && (
+        <div className="flex-1 flex items-center justify-center">
+          <p className="text-gray-600 font-mono text-sm">Waiting for simulation data...</p>
+        </div>
+      )}
+
       {/* ── Main Layout ─────────────────────────────────────────────────── */}
-      {!isLoading && <div className="flex-1 flex min-h-0 overflow-hidden">
+      {!isLoading && data && <div className="flex-1 flex min-h-0 overflow-hidden">
         {/* Left Sidebar: Activity Feed — desktop only */}
         <div className="hidden lg:block w-56 shrink-0 border-r border-[#1a1a2a] p-2 overflow-hidden">
           <ActivityFeed
