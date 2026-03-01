@@ -14,6 +14,7 @@ import Controls from './components/Controls';
 import ReasoningPanel from './components/ReasoningPanel';
 import PerformanceAnalytics from './components/PerformanceAnalytics';
 import AgentIcon from './components/AgentIcon';
+import BreakingNews from './components/BreakingNews';
 
 const PLAYBACK_SPEED = 2; // ticks per second (fixed)
 
@@ -71,7 +72,7 @@ export default function App() {
   );
 
   // ── Launch simulation from setup ───────────────────────────────────────
-  const handleStart = async (configs: AgentConfig[], ticks: number, assets: string[]) => {
+  const handleStart = async (configs: AgentConfig[], ticks: number, assets: string[], customNews: { tick: number; headline: string }[] = []) => {
     setAgentConfigs(configs);
     setNumTicks(ticks);
     setSelectedAssets(assets);
@@ -87,6 +88,7 @@ export default function App() {
         seed,
         agents: configs,
         assets,
+        custom_news: customNews,
       });
       setData(result);
       setCurrentTick(0);
@@ -253,6 +255,12 @@ export default function App() {
 
         {/* Center — scrollable on all screens */}
         <div className="flex-1 p-2 md:p-3 space-y-3 overflow-y-auto">
+          {/* Breaking News Banner */}
+          <BreakingNews
+            newsEvents={data?.news_events ?? []}
+            currentTick={currentTick}
+          />
+
           <PortfolioCards
             pnlHistory={data?.pnl_history ?? {}}
             positionHistory={data?.position_history ?? {}}

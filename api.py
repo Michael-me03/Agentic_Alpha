@@ -55,6 +55,15 @@ class AgentConfigModel(BaseModel):
     city: str = "New York"
 
 
+class CustomNewsEvent(BaseModel):
+    """User-defined news event to inject at a specific tick."""
+
+    tick: int
+    headline: str
+    category: str = "CUSTOM"
+    severity: str = "HIGH"
+
+
 class SimulationRequest(BaseModel):
     """Parameters for a simulation run."""
 
@@ -62,6 +71,7 @@ class SimulationRequest(BaseModel):
     seed: int = RANDOM_SEED
     agents: list[AgentConfigModel] = []
     assets: list[str] = ["BTC-USD", "ETH-USD", "SOL-USD"]
+    custom_news: list[CustomNewsEvent] = []
 
 
 class AgentSnapshot(BaseModel):
@@ -91,6 +101,15 @@ class ReasoningEntry(BaseModel):
     reason: str
 
 
+class NewsEventOut(BaseModel):
+    """A news event that fired during simulation."""
+
+    tick: int
+    headline: str
+    category: str
+    severity: str
+
+
 class SimulationResponse(BaseModel):
     """Full simulation result with all history data."""
 
@@ -100,6 +119,7 @@ class SimulationResponse(BaseModel):
     agents: list[AgentSnapshot]
     events: list[EventRecord]
     reasoning: dict[str, list[ReasoningEntry]]
+    news_events: list[NewsEventOut]
     num_ticks: int
     history_ticks: int
     asset_info: dict[str, dict[str, str]]
@@ -248,6 +268,7 @@ async def simulate(request: SimulationRequest) -> SimulationResponse:
         start_prices=start_prices,
         asset_symbols=selected_assets,
         asset_params=asset_params,
+        custom_news=[e.model_dump() for e in request.custom_news],
     )
     sim.run()
 
@@ -302,6 +323,11 @@ async def simulate(request: SimulationRequest) -> SimulationResponse:
         for name, entries in sim.reasoning_history.items()
     }
 
+    # ── Build news events list ─────────────────────────────────────────────
+    news_out = [
+        NewsEventOut(**ne) for ne in sim.news_events_fired
+    ]
+
     return SimulationResponse(
         price_histories=merged_price_histories,
         pnl_history=merged_pnl,
@@ -309,6 +335,7 @@ async def simulate(request: SimulationRequest) -> SimulationResponse:
         agents=agent_snapshots,
         events=events,
         reasoning=reasoning,
+        news_events=news_out,
         num_ticks=request.num_ticks,
         history_ticks=history_ticks,
         asset_info={

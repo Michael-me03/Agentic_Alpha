@@ -99,19 +99,35 @@ class LLMDecision:
 # SECTION: Core Decision Function
 # ============================================================================
 
-def _build_market_prompt(agent: BaseAgent, state: MarketState) -> str:
+def _build_market_prompt(
+    agent: BaseAgent,
+    state: MarketState,
+    active_news: list | None = None,
+) -> str:
     """
     Build the user prompt with current multi-asset market context.
 
     Args:
-        agent: The agent making the decision.
-        state: Current market state.
+        agent:       The agent making the decision.
+        state:       Current market state.
+        active_news: Breaking news events happening this tick.
 
     Returns:
         Formatted market context string.
     """
     active_assets = list(state.prices.keys())
     lines = [f"MARKET STATE (tick {state.tick}):"]
+
+    # ── Breaking news injection ───────────────────────────────────────────
+    if active_news:
+        lines.append("")
+        lines.append("⚡ BREAKING NEWS — REACT TO THIS:")
+        for news in active_news:
+            severity_tag = f"[{news.severity}]" if hasattr(news, 'severity') else ""
+            lines.append(f"  {severity_tag} {news.headline}")
+        lines.append("")
+        lines.append("This news just broke. Factor it into your trading decision. How does this affect the assets you trade?")
+        lines.append("")
     lines.append(f"Available assets: {', '.join(active_assets)}")
     lines.append("")
 
@@ -161,20 +177,22 @@ def get_llm_decision(
     client: MistralClient,
     agent: BaseAgent,
     state: MarketState,
+    active_news: list | None = None,
 ) -> LLMDecision | None:
     """
     Ask Mistral for an agent's trading decision.
 
     Args:
-        client: Mistral API client.
-        agent:  The agent making the decision.
-        state:  Current market state.
+        client:      Mistral API client.
+        agent:       The agent making the decision.
+        state:       Current market state.
+        active_news: Breaking news events happening this tick.
 
     Returns:
         Parsed LLMDecision, or None if the call/parsing fails.
     """
     personality = getattr(agent, "system_prompt", None) or PERSONALITIES.get(agent.name, "You are a financial trader.")
-    user_prompt = _build_market_prompt(agent, state)
+    user_prompt = _build_market_prompt(agent, state, active_news=active_news)
 
     result = client.chat_json(
         system_prompt=personality,

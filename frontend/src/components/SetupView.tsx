@@ -42,8 +42,13 @@ interface SelectedAsset {
   type: string;
 }
 
+export interface CustomNewsInput {
+  tick: number;
+  headline: string;
+}
+
 interface Props {
-  onStart: (configs: AgentConfig[], numTicks: number, selectedAssets: string[]) => void;
+  onStart: (configs: AgentConfig[], numTicks: number, selectedAssets: string[], customNews: CustomNewsInput[]) => void;
   isLoading: boolean;
 }
 
@@ -58,6 +63,9 @@ export default function SetupView({ onStart, isLoading }: Props) {
   ]);
   const [started, setStarted] = useState(false);
   const [openIconPicker, setOpenIconPicker] = useState<number | null>(null);
+  const [customNews, setCustomNews] = useState<CustomNewsInput[]>([]);
+  const [newsHeadline, setNewsHeadline] = useState('');
+  const [newsTick, setNewsTick] = useState(10);
 
   // ── Asset search state ─────────────────────────────────────────────────
   const [searchQuery, setSearchQuery] = useState('');
@@ -224,7 +232,9 @@ export default function SetupView({ onStart, isLoading }: Props) {
               {agents.map((agent, idx) => (
                 <div
                   key={idx}
-                  className="bg-[#0d0d14] rounded-xl border border-[#1e1e2e] p-4 sm:p-5 relative"
+                  className={`bg-[#0d0d14] rounded-xl border border-[#1e1e2e] p-4 sm:p-5 relative ${
+                    openIconPicker === idx ? 'z-50' : 'z-0'
+                  }`}
                 >
                   {/* Delete button — always visible, top right */}
                   <button
@@ -246,7 +256,7 @@ export default function SetupView({ onStart, isLoading }: Props) {
                         <AgentIcon icon={agent.icon} size={24} color={agent.color} />
                       </button>
                       {openIconPicker === idx && (
-                        <div className="absolute left-0 top-14 z-20 grid grid-cols-5 gap-1.5 p-3 bg-[#111118] border border-[#2a2a3a] rounded-xl shadow-xl">
+                        <div className="absolute left-0 top-14 z-[100] grid grid-cols-5 gap-1.5 p-3 bg-[#111118] border border-[#2a2a3a] rounded-xl shadow-2xl min-w-[230px]">
                           {ICON_OPTIONS.map((icon) => (
                             <button
                               key={icon}
@@ -505,9 +515,74 @@ export default function SetupView({ onStart, isLoading }: Props) {
                 </div>
               </div>
 
+              {/* ── Custom News Events ─────────────────────────────────── */}
+              <div className="bg-[#0d0d14] rounded-xl border border-[#1e1e2e] p-5">
+                <span className="text-xs font-bold text-gray-500 uppercase tracking-widest font-mono block mb-2">
+                  News Events (optional)
+                </span>
+                <p className="text-[10px] text-gray-700 font-mono mb-4">
+                  Inject custom breaking news. Agents will react to these headlines. Random events also fire automatically.
+                </p>
+
+                {/* Existing custom news */}
+                {customNews.length > 0 && (
+                  <div className="space-y-1.5 mb-3">
+                    {customNews.map((n, i) => (
+                      <div key={i} className="flex items-center gap-2 p-2 rounded-lg bg-[#08080d] border border-[#1a1a2a]">
+                        <span className="text-[10px] text-amber-400 font-mono font-bold shrink-0">t={n.tick}</span>
+                        <span className="text-[10px] text-gray-300 font-mono flex-1 truncate">{n.headline}</span>
+                        <button
+                          onClick={() => setCustomNews(customNews.filter((_, j) => j !== i))}
+                          className="text-gray-600 hover:text-red-400 text-xs shrink-0"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Add new event */}
+                <div className="flex gap-2">
+                  <input
+                    type="number"
+                    min={1}
+                    max={numTicks}
+                    value={newsTick}
+                    onChange={(e) => setNewsTick(Number(e.target.value))}
+                    className="w-16 bg-[#111118] border border-[#1e1e2e] rounded-lg px-2 py-2 text-white text-xs font-mono text-center focus:outline-none focus:border-amber-500/50"
+                    placeholder="Tick"
+                  />
+                  <input
+                    type="text"
+                    value={newsHeadline}
+                    onChange={(e) => setNewsHeadline(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && newsHeadline.trim()) {
+                        setCustomNews([...customNews, { tick: newsTick, headline: newsHeadline.trim() }]);
+                        setNewsHeadline('');
+                      }
+                    }}
+                    className="flex-1 bg-[#111118] border border-[#1e1e2e] rounded-lg px-3 py-2 text-gray-300 text-xs font-mono focus:outline-none focus:border-amber-500/50 placeholder-gray-700"
+                    placeholder="e.g. Fed raises rates by 75bps..."
+                  />
+                  <button
+                    onClick={() => {
+                      if (newsHeadline.trim()) {
+                        setCustomNews([...customNews, { tick: newsTick, headline: newsHeadline.trim() }]);
+                        setNewsHeadline('');
+                      }
+                    }}
+                    className="px-3 py-2 bg-amber-500/10 border border-amber-500/30 rounded-lg text-amber-400 text-xs font-mono font-bold hover:bg-amber-500/20 transition-colors"
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+
               {/* Launch Button */}
               <button
-                onClick={() => onStart(agents, numTicks, selectedAssets.map((a) => a.symbol))}
+                onClick={() => onStart(agents, numTicks, selectedAssets.map((a) => a.symbol), customNews)}
                 disabled={!canLaunch || isLoading}
                 className={`w-full py-5 rounded-xl font-mono font-bold text-base tracking-wider transition-all ${
                   canLaunch && !isLoading

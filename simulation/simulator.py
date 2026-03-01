@@ -25,6 +25,7 @@ from agents.base_agent import BaseAgent, TradeDecision
 from core.state import MarketState
 from core.price_process import update_prices
 from core.execution import execute_trade
+from core.news_events import NewsEvent, generate_random_events, merge_custom_events, events_to_dicts
 from simulation.event_log import EventLog
 from config import NUM_TICKS, RANDOM_SEED, ASSETS, ASSET_SYMBOLS, DT
 
@@ -54,6 +55,7 @@ class Simulator:
         start_prices: dict[str, float] | None = None,
         asset_symbols: list[str] | None = None,
         asset_params: dict[str, dict] | None = None,
+        custom_news: list[dict] | None = None,
     ) -> None:
         self.agents = agents
         self.num_ticks = num_ticks
@@ -62,6 +64,11 @@ class Simulator:
         self.llm_interval = max(1, llm_interval)
         self.asset_symbols = asset_symbols or ASSET_SYMBOLS
         self.asset_params = asset_params or ASSETS
+
+        # ── Generate news events ──────────────────────────────────────────
+        random_events = generate_random_events(num_ticks, count=3, seed=seed)
+        self.news_events = merge_custom_events(random_events, custom_news or [])
+        self.news_events_fired: list[dict] = []  # Track which events have fired
 
         # ── Generate pre-history or start from given prices ─────────────
         if start_prices is not None:
@@ -173,15 +180,35 @@ class Simulator:
             self.state.net_order_flows[s] = 0.0
         self.state.tick = tick
 
+        # ── Check for news events this tick ───────────────────────────────
+        active_news = [e for e in self.news_events if e.tick == tick]
+        for news in active_news:
+            self.news_events_fired.append({
+                "tick": news.tick,
+                "headline": news.headline,
+                "category": news.category,
+                "severity": news.severity,
+            })
+            self.event_log.record(
+                tick=tick,
+                agent_name="NEWS",
+                action="BREAKING",
+                detail=news.headline,
+            )
+            logger.info(f"NEWS t={tick}: {news.headline}")
+
         # ── Agents decide and execute ───────────────────────────────────
         is_llm_tick = (tick % self.llm_interval == 0)
+        # Force LLM tick when breaking news hits so agents can react
+        if active_news:
+            is_llm_tick = True
 
         for agent in self.agents:
             decision = TradeDecision()
             reason = ""
 
             if is_llm_tick:
-                decision, reason = self._llm_decide(agent)
+                decision, reason = self._llm_decide(agent, active_news)
 
             # Deterministic between LLM ticks or on LLM failure
             if decision.trade_size == 0 and reason == "":
@@ -243,12 +270,17 @@ class Simulator:
                     agent.positions.get(symbol, 0)
                 )
 
-    def _llm_decide(self, agent: BaseAgent) -> tuple[TradeDecision, str]:
+    def _llm_decide(
+        self,
+        agent: BaseAgent,
+        active_news: list[NewsEvent] | None = None,
+    ) -> tuple[TradeDecision, str]:
         """
         Get a decision from the Mistral LLM.
 
         Args:
-            agent: The agent requesting a decision.
+            agent:       The agent requesting a decision.
+            active_news: Breaking news events happening this tick.
 
         Returns:
             Tuple of (TradeDecision, reason string).
@@ -258,7 +290,7 @@ class Simulator:
             from llm.decision_layer import get_llm_decision
 
             client = self._get_llm_client()
-            decision = get_llm_decision(client, agent, self.state)
+            decision = get_llm_decision(client, agent, self.state, active_news=active_news)
 
             if decision is None:
                 return TradeDecision(), ""

@@ -31,6 +31,13 @@ export interface ReasoningEntry {
   reason: string;
 }
 
+export interface NewsEvent {
+  tick: number;
+  headline: string;
+  category: string;
+  severity: string;
+}
+
 export interface SimulationResponse {
   price_histories: Record<string, number[]>;
   pnl_history: Record<string, number[]>;
@@ -38,6 +45,7 @@ export interface SimulationResponse {
   agents: AgentSnapshot[];
   events: EventRecord[];
   reasoning: Record<string, ReasoningEntry[]>;
+  news_events: NewsEvent[];
   num_ticks: number;
   history_ticks: number;
   asset_info: Record<string, { name: string; symbol: string }>;
@@ -49,6 +57,7 @@ export interface SimulationRequest {
   seed: number;
   agents: AgentConfig[];
   assets: string[];
+  custom_news?: { tick: number; headline: string }[];
 }
 
 export const ASSET_SYMBOLS = ['BTC-USD', 'ETH-USD', 'SOL-USD'] as const;
