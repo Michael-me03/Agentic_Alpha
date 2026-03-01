@@ -95,7 +95,9 @@ export default function App() {
       setIsLoading(false);
       startPlayback(result);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Unknown error');
+      const msg = e instanceof Error ? e.message : 'Unknown error';
+      console.error('Simulation failed:', e);
+      setError(msg);
       setIsLoading(false);
     }
   };
